@@ -318,22 +318,23 @@ Record and monitor data from a UNI-T UT803 table multimeter via serial connectio
 
 
 if __name__ == "__main__":
+    interactive()
 
-    example_data = []
-    example_data.append(b'01009;80:\r\n')
-    example_data.append(b'01008;<0:\r\n')
-    example_data.append(b'01008;<0:\r\n')
-    example_data.append(b'00010;806\r\n')
-    example_data.append(b'001343802\r\n')
-    example_data.append(b'000346802\r\n')
-    example_data.append(b'000204800\r\n')
-    example_data.append(b'000069808\r\n')
-    example_data.append(b'10647?80:\r\n')
+    # example_data = []
+    # example_data.append(b'01009;80:\r\n')
+    # example_data.append(b'01008;<0:\r\n')
+    # example_data.append(b'01008;<0:\r\n')
+    # example_data.append(b'00010;806\r\n')
+    # example_data.append(b'001343802\r\n')
+    # example_data.append(b'000346802\r\n')
+    # example_data.append(b'000204800\r\n')
+    # example_data.append(b'000069808\r\n')
+    # example_data.append(b'10647?80:\r\n')
 
-    for ex in example_data:
-      value, unit, measure, flags = testread(ex)
-      tmp = prettyValueFormat(value, unit)
-      print(tmp)
+    # for ex in example_data:
+    #   value, unit, measure, flags = testread(ex)
+    #   tmp = prettyValueFormat(value, unit)
+    #   print(tmp)
       
 
 
