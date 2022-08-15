@@ -1,3 +1,6 @@
+from operator import neg
+from pip import main
+import datetime as dt
 #!/usr/bin/env python3
 """
     A readout library and command line tool for the UNI-T UT803 multimeter
@@ -21,6 +24,7 @@ import sys
 import time
 import serial
 
+
 def chrToInt(c):
     """
     Convert an incoming "hex" character from the UT803 to integer value.
@@ -30,10 +34,14 @@ def chrToInt(c):
     
     Raises TypeError for any character any other than 0123456789:;<=>?
     """
-    num = ord(c) - 48
+    if type(c) == int:
+      num = c - 48
+    else:
+      num = ord(c) - 48
     if 0 <= num <= 15:
         return num
     raise TypeError("Invalid numeric character")
+
 
 class UT803:
     measurement_type_table = {
@@ -49,18 +57,18 @@ class UT803:
         14: "hFE",
         15: "current",
     }
-    
+
     def __init__(self, tty, timeout=2):
         self.conn = serial.Serial(tty,
-                       baudrate=19200,
-                       bytesize=serial.SEVENBITS,
-                       parity=serial.PARITY_ODD,
-                       stopbits=serial.STOPBITS_ONE,
-                       timeout=timeout,
-                       xonxoff=1,
-                       rtscts=0,
-                       dsrdtr=0
-                       )
+                                  baudrate=19200,
+                                  bytesize=serial.SEVENBITS,
+                                  parity=serial.PARITY_ODD,
+                                  stopbits=serial.STOPBITS_ONE,
+                                  timeout=timeout,
+                                  xonxoff=1,
+                                  rtscts=0,
+                                  dsrdtr=0
+                                  )
         # switch on power for hardware RS232
         # transmitter via handshake-signals
         self.conn.dtr = True
@@ -75,25 +83,25 @@ class UT803:
         line = self.conn.readline().decode("ascii")
         if not line or len(line) != 11:
             return
-        
+
         measurement = chrToInt(line[5])
         meas_type = UT803.measurement_type_table[measurement]
         flags = [chrToInt(c) for c in line[6:9]]
-        
+
         overload = flags[0] & 0x1
         sign = flags[0] & 0x4
         not_farenheit = flags[0] & 0x8
-        
+
         minimum = flags[1] & 0x2
         maximum = flags[1] & 0x4
         hold = flags[1] & 0x8
-        
+
         autorange = flags[2] & 0x2
         ac = flags[2] & 0x4
         dc = flags[2] & 0x8
-        
+
         unit = UT803.getUnit(measurement, flags)
-        
+
         # different units have different exponent offsets …
         exponent = chrToInt(line[0])
         if unit == "V" and exponent & 0x4:
@@ -103,7 +111,7 @@ class UT803:
         value = float(base_value) * 10**exponent
         if sign:
             value *= -1
-        
+
         flags_dict = {
             "overload": overload > 0,
             "sign": sign > 0,
@@ -160,6 +168,52 @@ class UT803:
         self.conn = None
 
 
+def testread(line):
+    if not line or len(line) != 11:
+        return
+
+    measurement = chrToInt(line[5])
+    meas_type = UT803.measurement_type_table[measurement]
+    flags = [chrToInt(c) for c in line[6:9]]
+
+    overload = flags[0] & 0x1
+    sign = flags[0] & 0x4
+    not_farenheit = flags[0] & 0x8
+
+    minimum = flags[1] & 0x2
+    maximum = flags[1] & 0x4
+    hold = flags[1] & 0x8
+
+    autorange = flags[2] & 0x2
+    ac = flags[2] & 0x4
+    dc = flags[2] & 0x8
+
+    unit = UT803.getUnit(measurement, flags)
+
+    # different units have different exponent offsets …
+    exponent = chrToInt(line[0])
+    if unit == "V" and exponent & 0x4:
+        exponent -= 2
+    exponent += UT803.getExponentOffsetForUnit(unit)
+    base_value = int(line[1:5])
+    value = float(base_value) * 10**exponent
+    if sign:
+        value *= -1
+
+    flags_dict = {
+        "overload": overload > 0,
+        "sign": sign > 0,
+        "not_farenheit": not_farenheit > 0,
+        "min": minimum > 0,
+        "max": maximum > 0,
+        "hold": hold > 0,
+        "autorange": autorange > 0,
+        "ac": ac > 0,
+        "dc": dc > 0
+    }
+    return value, unit, meas_type, flags_dict
+
+
 def prettyValueFormat(value, unit=""):
     negative = False
     if value < 0:
@@ -194,15 +248,19 @@ def prettyValueFormat(value, unit=""):
       value = value * -1
     return value, unit
 
+
 def interactive():
     import argparse
     parser = argparse.ArgumentParser(description="""
 Record and monitor data from a UNI-T UT803 table multimeter via serial connection. Either connect the UT803 via the RS-232 port, or USB. In the second case, a virtual RS-232 device is created.
 """)
     parser.add_argument("port", help="Serial port for UT803 connection.")
-    parser.add_argument("output", help="Specify output file. Use - for stdout.")
-    parser.add_argument("-d", "--delay", type=int, help="Delay measurement for specified number of seconds.")
-    parser.add_argument("-m", "--monitor", action="store_true", default=False, help="Display a line with the current value and device status.")
+    parser.add_argument(
+        "output", help="Specify output file. Use - for stdout.")
+    parser.add_argument("-d", "--delay", type=int,
+                        help="Delay measurement for specified number of seconds.")
+    parser.add_argument("-m", "--monitor", action="store_true", default=False,
+                        help="Display a line with the current value and device status.")
     args = parser.parse_args()
     conn = UT803(tty=args.port)
     stdout = args.output == "-"
@@ -222,15 +280,16 @@ Record and monitor data from a UNI-T UT803 table multimeter via serial connectio
                 continue
             value, unit, measure, flags = r
             t = time.time() - initial_time
+            utc_t = dt.date.utcnow()
             if measure != current_measurement:
                 if current_measurement:
                     f.write("\n")
                 current_measurement = measure
                 f.write("# initial flags: {}\n#time(s)\t{}({})\toverload\n".format(
-                    ", ".join(str(k) for k,v in flags.items() if v),
+                    ", ".join(str(k) for k, v in flags.items() if v),
                     measure,
                     unit
-                    )
+                )
                 )
                 initial_time = time.time()
                 t = 0
@@ -238,14 +297,15 @@ Record and monitor data from a UNI-T UT803 table multimeter via serial connectio
             if t - last_time < 0.05:
                 continue
             last_time = t
-            f.write("{:.1f}\t{}\t{}\n".format(t, value, "1" if flags["overload"] else "0"))
+            f.write("{}\t{}\t{}\n".format(
+                utc_t.isoformat(), value, "1" if flags["overload"] else "0"))
             f.flush()
             if args.monitor:
                 pval, punit = prettyValueFormat(value, unit)
                 sys.stdout.write("\r\033[0K{}: {:.2f} {}, flags: {}".format(
                     measure, pval, punit,
-                    " ".join(str(k) for k,v in flags.items() if v)
-                    )
+                    " ".join(str(k) for k, v in flags.items() if v)
+                )
                 )
             if args.delay:
                 time.sleep(args.delay)
@@ -256,5 +316,33 @@ Record and monitor data from a UNI-T UT803 table multimeter via serial connectio
             f.close()
         conn.close()
 
+
 if __name__ == "__main__":
-    interactive()
+
+    example_data = []
+    example_data.append(b'01009;80:\r\n')
+    example_data.append(b'01008;<0:\r\n')
+    example_data.append(b'01008;<0:\r\n')
+    example_data.append(b'00010;806\r\n')
+    example_data.append(b'001343802\r\n')
+    example_data.append(b'000346802\r\n')
+    example_data.append(b'000204800\r\n')
+    example_data.append(b'000069808\r\n')
+    example_data.append(b'10647?80:\r\n')
+
+    for ex in example_data:
+      value, unit, measure, flags = testread(ex)
+      tmp = prettyValueFormat(value, unit)
+      print(tmp)
+      
+
+
+# 1.009 V DC        01009;80:<\r><\n>
+# -1.008 V DC       01008;<0:<\r><\n>
+# -1.008 V DC + DC  01008;<0:<\r><\n>
+# 0.010 V AC        00010;806<\r><\n>
+# 13.4 Ohm          001343802<\r><\n>
+# 0.034 nF          000346802<\r><\n>
+# 20 °C             000204800<\r><\n>
+# 0.06 A DC         000069808<\r><\n>   (ca. alle 600 ms)
+# 64.7 mA DC        10647?80:<\r><\n>
