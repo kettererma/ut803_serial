@@ -266,7 +266,7 @@ Record and monitor data from a UNI-T UT803 table multimeter via serial connectio
     if stdout:
         f = sys.stdout
     else:
-        f = open(args.output, "w")
+        f = open(args.output, "a")
     current_measurement = ""
     initial_time = 0.0
     # For some freakin' reason the UT803 sends each measurement twice.
