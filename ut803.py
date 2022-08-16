@@ -280,7 +280,7 @@ Record and monitor data from a UNI-T UT803 table multimeter via serial connectio
                 continue
             value, unit, measure, flags = r
             t = time.time() - initial_time
-            utc_t = dt.date.utcnow()
+            utc_t = dt.datetime.utcnow()
             if measure != current_measurement:
                 if current_measurement:
                     f.write("\n")
