@@ -1,5 +1,4 @@
 from operator import neg
-from pip import main
 import datetime as dt
 #!/usr/bin/env python3
 """
